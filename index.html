@@ -254,8 +254,6 @@
                         <select id="profileGender">
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                            <option value="Prefer not to say">Prefer not to say</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -804,7 +802,7 @@
             // Add standard fields
             addEditField('Name', 'name', profile.name || '', true);
             addEditField('Gender', 'gender', profile.gender || 'Male', false, 'select', [
-                'Male', 'Female', 'Other', 'Prefer not to say'
+                'Male', 'Female'
             ]);
             addEditField('Image URL', 'image', profile.image || '', false);
             addEditField('About', 'about', profile.about || '', false, 'textarea');
