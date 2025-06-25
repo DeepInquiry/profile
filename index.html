@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ff0000;
+            --border-color: #ff0000;
+            --hover-color: #330000;
+            --highlight-color: #660000;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        button, input, textarea, select {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        button {
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: var(--hover-color);
+        }
+        
+        .document-list, .profile-list {
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        .document, .profile {
+            margin: 10px 0;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .delete-btn, .edit-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #330000;
+            color: var(--text-color);
+            border: none;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .edit-btn {
+            right: 45px;
+        }
+        
+        .profile-image {
+            max-width: 100px;
+            max-height: 100px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .profile-data-view {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+        
+        .profile-data-item {
+            margin-bottom: 10px;
+        }
+        
+        /* Password protection */
+        .password-protection {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .password-box {
+            background-color: #111;
+            padding: 30px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        /* Responsive layout */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            button, input, textarea, select {
+                width: 100%;
+            }
+            
+            .profile-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .profile-fields {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+        }
+        
+        /* Document stats */
+        .document-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-color);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* About section styling */
+        .about-section {
+            margin-top: 15px;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .about-content {
+            white-space: pre-wrap;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Password Protection Screen -->
+    <div id="passwordProtection" class="password-protection">
+        <div class="password-box">
+            <h2>Enter Password</h2>
+            <input type="password" id="passwordInput" placeholder="Enter the password">
+            <button id="submitPassword">Submit</button>
+            <p id="passwordError" style="color: red; margin-top: 10px; display: none;">Incorrect password. Try again.</p>
+        </div>
+    </div>
+
+    <!-- Main App Content (hidden until password is entered) -->
+    <div id="appContent" class="container hidden">
+        <h1>Profile</h1>
+        
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="documents">Documents</button>
+            <button class="tab-btn" data-tab="allData">View All Data</button>
+        </div>
+        
+        <!-- Document Management Tab -->
+        <div id="documentsTab" class="tab-content">
+            <!-- Document Creation Section -->
+            <div class="form-group">
+                <h2>Create New Document</h2>
+                <input type="text" id="documentName" placeholder="Document Name" required>
+                <button id="createDocumentBtn">Create Document</button>
+                <span id="documentLoading" class="loading hidden"></span>
+            </div>
+            
+            <!-- Document List Section -->
+            <div class="document-list" id="documentList">
+                <h2>Your Documents</h2>
+                <div id="documentsContainer">
+                    <p id="loadingDocuments">Loading documents...</p>
+                </div>
+            </div>
+            
+            <!-- Profile Creation Section (hidden by default) -->
+            <div id="profileCreationSection" class="hidden">
+                <h2>Create New Profile</h2>
+                <div class="profile-fields">
+                    <div class="form-group">
+                        <label for="profileName">Name:</label>
+                        <input type="text" id="profileName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileGender">Gender:</label>
+                        <select id="profileGender">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileImage">Image URL:</label>
+                        <input type="text" id="profileImage" placeholder="https://example.com/image.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileAbout">About:</label>
+                        <textarea id="profileAbout" rows="4" placeholder="Write something about this person..."></textarea>
+                    </div>
+                    <!-- Additional fields will be added here dynamically -->
+                </div>
+                <button id="addFieldBtn">Add Custom Field</button>
+                <button id="createProfileBtn">Create Profile</button>
+                <span id="profileLoading" class="loading hidden"></span>
+                <button id="cancelProfileBtn">Cancel</button>
+            </div>
+            
+            <!-- Profile List Section (hidden by default) -->
+            <div id="profileListSection" class="hidden">
+                <h2 id="currentDocumentTitle"></h2>
+                <div class="document-stats">
+                    <span id="profileCount">0 profiles</span>
+                    <span id="documentCreated">Created: </span>
+                </div>
+                <button id="backToDocumentsBtn">Back to Documents</button>
+                <button id="addNewProfileBtn">Add New Profile</button>
+                <div class="profile-list" id="profilesContainer">
+                    <!-- Profiles will be added here dynamically -->
+                </div>
+            </div>
+            
+            <!-- Profile View/Edit Section (hidden by default) -->
+            <div id="profileViewSection" class="hidden">
+                <h2>Profile Details</h2>
+                <div class="profile-data-view" id="profileDataView">
+                    <!-- Profile data will be displayed here -->
+                </div>
+                <button id="editProfileBtn">Edit Profile</button>
+                <button id="backToProfilesBtn">Back to Profiles</button>
+            </div>
+            
+            <!-- Profile Edit Section (hidden by default) -->
+            <div id="profileEditSection" class="hidden">
+                <h2>Edit Profile</h2>
+                <div class="profile-fields" id="profileEditFields">
+                    <!-- Editable fields will be added here dynamically -->
+                </div>
+                <button id="saveProfileBtn">Save Changes</button>
+                <span id="saveLoading" class="loading hidden"></span>
+                <button id="cancelEditBtn">Cancel</button>
+            </div>
+        </div>
+        
+        <!-- View All Data Tab -->
+        <div id="allDataTab" class="tab-content hidden">
+            <h2>All Profile Data</h2>
+            <div class="all-data-container" id="allDataContainer">
+                <!-- All data will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7cbB3-JMADcsmvib5FDVAu_9qumLVais",
+            authDomain: "myprofilesave.firebaseapp.com",
+            databaseURL: "https://myprofilesave-default-rtdb.firebaseio.com",
+            projectId: "myprofilesave",
+            storageBucket: "myprofilesave.firebasestorage.app",
+            messagingSenderId: "808695520423",
+            appId: "1:808695520423:web:c1f3416658a92702580f82"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // Data storage
+        let documents = [];
+        let currentDocumentId = null;
+        let currentProfileId = null;
+        
+        // DOM elements
+        const passwordProtection = document.getElementById('passwordProtection');
+        const appContent = document.getElementById('appContent');
+        const passwordInput = document.getElementById('passwordInput');
+        const submitPassword = document.getElementById('submitPassword');
+        const passwordError = document.getElementById('passwordError');
+        const documentNameInput = document.getElementById('documentName');
+        const createDocumentBtn = document.getElementById('createDocumentBtn');
+        const documentsContainer = document.getElementById('documentsContainer');
+        const profileCreationSection = document.getElementById('profileCreationSection');
+        const profileListSection = document.getElementById('profileListSection');
+        const profilesContainer = document.getElementById('profilesContainer');
+        const currentDocumentTitle = document.getElementById('currentDocumentTitle');
+        const backToDocumentsBtn = document.getElementById('backToDocumentsBtn');
+        const addNewProfileBtn = document.getElementById('addNewProfileBtn');
+        const createProfileBtn = document.getElementById('createProfileBtn');
+        const cancelProfileBtn = document.getElementById('cancelProfileBtn');
+        const addFieldBtn = document.getElementById('addFieldBtn');
+        const profileFieldsContainer = document.querySelector('.profile-fields');
+        const profileViewSection = document.getElementById('profileViewSection');
+        const profileDataView = document.getElementById('profileDataView');
+        const editProfileBtn = document.getElementById('editProfileBtn');
+        const backToProfilesBtn = document.getElementById('backToProfilesBtn');
+        const profileEditSection = document.getElementById('profileEditSection');
+        const profileEditFields = document.getElementById('profileEditFields');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const profileCount = document.getElementById('profileCount');
+        const documentCreated = document.getElementById('documentCreated');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const loadingDocuments = document.getElementById('loadingDocuments');
+        const documentLoading = document.getElementById('documentLoading');
+        const profileLoading = document.getElementById('profileLoading');
+        const saveLoading = document.getElementById('saveLoading');
+        const profileAbout = document.getElementById('profileAbout');
+        
+        // Password protection
+        const CORRECT_PASSWORD = "519959QLZa";
+        
+        submitPassword.addEventListener('click', () => {
+            if (passwordInput.value === CORRECT_PASSWORD) {
+                passwordProtection.style.display = 'none';
+                appContent.classList.remove('hidden');
+                loadDocuments();
+            } else {
+                passwordError.style.display = 'block';
+            }
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitPassword.click();
+            }
+        });
+        
+        // Initialize the app
+        function init() {
+            setupEventListeners();
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Document management
+            createDocumentBtn.addEventListener('click', createDocument);
+            backToDocumentsBtn.addEventListener('click', showDocumentList);
+            
+            // Profile management
+            addNewProfileBtn.addEventListener('click', showProfileCreation);
+            createProfileBtn.addEventListener('click', createProfile);
+            cancelProfileBtn.addEventListener('click', cancelProfileCreation);
+            addFieldBtn.addEventListener('click', addCustomField);
+            
+            // Profile viewing/editing
+            editProfileBtn.addEventListener('click', showProfileEdit);
+            backToProfilesBtn.addEventListener('click', showProfileList);
+            saveProfileBtn.addEventListener('click', saveProfileChanges);
+            cancelEditBtn.addEventListener('click', cancelProfileEdit);
+            
+            // Tab navigation
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+        }
+        
+        // Load documents from Firebase
+        function loadDocuments() {
+            showLoading(documentLoading);
+            database.ref('documents').on('value', (snapshot) => {
+                documents = [];
+                const data = snapshot.val();
+                if (data) {
+                    documents = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+                }
+                hideLoading(documentLoading);
+                renderDocuments();
+            });
+        }
+        
+        // Switch between tabs
+        function switchTab(tabId) {
+            tabButtons.forEach(button => {
+                button.classList.toggle('active', button.dataset.tab === tabId);
+            });
+            
+            tabContents.forEach(content => {
+                content.classList.toggle('hidden', content.id !== `${tabId}Tab`);
+            });
+            
+            if (tabId === 'allData') {
+                renderAllData();
+            }
+        }
+        
+        // Render all documents
+        function renderDocuments() {
+            documentsContainer.innerHTML = '';
+            
+            if (documents.length === 0) {
+                documentsContainer.innerHTML = '<p>No documents found. Create your first document!</p>';
+                return;
+            }
+            
+            documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'document';
+                docElement.innerHTML = `
+                    <h3>${doc.name}</h3>
+                    <div class="document-stats">
+                        <span>${doc.profiles ? Object.keys(doc.profiles).length : 0} profiles</span>
+                        <span>Created: ${new Date(doc.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <button class="view-document-btn" data-id="${doc.id}">View Document</button>
+                    <button class="delete-btn" data-id="${doc.id}">Delete</button>
+                `;
+                documentsContainer.appendChild(docElement);
+            });
+            
+            // Add event listeners to view buttons
+            document.querySelectorAll('.view-document-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => viewDocument(e.target.dataset.id));
+            });
+            
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.document .delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteDocument(e.target.dataset.id);
+                });
+            });
+        }
+        
+        // Create a new document in Firebase
+        function createDocument() {
+            const name = documentNameInput.value.trim();
+            if (!name) {
+                alert('Please enter a document name');
+                return;
+            }
+            
+            showLoading(documentLoading);
+            const newDoc = {
+                name,
+                profiles: {},
+                createdAt: new Date().toISOString()
+            };
+            
+            const newDocRef = database.ref('documents').push();
+            newDocRef.set(newDoc)
+                .then(() => {
+                    documentNameInput.value = '';
+                    hideLoading(documentLoading);
+                })
+                .catch((error) => {
+                    console.error("Error adding document: ", error);
+                    hideLoading(documentLoading);
+                    alert('Error creating document. Please try again.');
+                });
+        }
+        
+        // View a specific document
+        function viewDocument(id) {
+            currentDocumentId = id;
+            const doc = documents.find(d => d.id === id);
+            if (!doc) return;
+            
+            currentDocumentTitle.textContent = doc.name;
+            profileCount.textContent = `${doc.profiles ? Object.keys(doc.profiles).length : 0} profiles`;
+            documentCreated.textContent = `Created: ${new Date(doc.createdAt).toLocaleString()}`;
+            
+            document.getElementById('documentList').classList.add('hidden');
+            profileListSection.classList.remove('hidden');
+            
+            renderProfiles();
+        }
+        
+        // Render profiles for current document
+        function renderProfiles() {
+            profilesContainer.innerHTML = '';
+            
+            const doc = documents.find(d => d.id === currentDocumentId);
+            if (!doc) {
+                showDocumentList();
+                return;
+            }
+            
+            if (!doc.profiles || Object.keys(doc.profiles).length === 0) {
+                profilesContainer.innerHTML = '<p>No profiles found in this document. Add your first profile!</p>';
+                return;
+            }
+            
+            Object.entries(doc.profiles).forEach(([id, profile]) => {
+                const profileElement = document.createElement('div');
+                profileElement.className = 'profile';
+                profileElement.dataset.id = id;
+                
+                let profileHTML = `
+                    <h3>${profile.name}</h3>
+                    <p><strong>Gender:</strong> ${profile.gender}</p>
+                `;
+                
+                if (profile.image) {
+                    profileHTML += `<img src="${profile.image}" alt="${profile.name}" class="profile-image" onerror="this.style.display='none'">`;
+                }
+                
+                // Add About section if exists
+                if (profile.about) {
+                    profileHTML += `
+                        <div class="about-section">
+                            <h4>About:</h4>
+                            <div class="about-content">${profile.about}</div>
+                        </div>
+                    `;
+                }
+                
+                // Add custom fields
+                for (const [key, value] of Object.entries(profile)) {
+                    if (key !== 'id' && key !== 'name' && key !== 'gender' && key !== 'image' && key !== 'about') {
+                        profileHTML += `<p><strong>${key}:</strong> ${value}</p>`;
+                    }
+                }
+                
+                profileHTML += `
+                    <button class="edit-btn" data-id="${id}">Edit</button>
+                    <button class="delete-btn" data-id="${id}">Delete</button>
+                `;
+                profileElement.innerHTML = profileHTML;
+                profilesContainer.appendChild(profileElement);
+            });
+            
+            // Add event listeners to edit buttons
+            document.querySelectorAll('.profile .edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    viewProfile(e.target.dataset.id);
+                });
+            });
+            
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.profile .delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteProfile(e.target.dataset.id);
+                });
+            });
+        }
+        
+        // Show document list
+        function showDocumentList() {
+            currentDocumentId = null;
+            profileListSection.classList.add('hidden');
+            profileViewSection.classList.add('hidden');
+            profileEditSection.classList.add('hidden');
+            document.getElementById('documentList').classList.remove('hidden');
+        }
+        
+        // Show profile list
+        function showProfileList() {
+            currentProfileId = null;
+            profileViewSection.classList.add('hidden');
+            profileEditSection.classList.add('hidden');
+            profileListSection.classList.remove('hidden');
+        }
+        
+        // Show profile creation form
+        function showProfileCreation() {
+            // Clear any existing custom fields
+            const fields = profileFieldsContainer.querySelectorAll('.custom-field');
+            fields.forEach(field => field.remove());
+            
+            // Reset form
+            document.getElementById('profileName').value = '';
+            document.getElementById('profileGender').value = 'Male';
+            document.getElementById('profileImage').value = '';
+            document.getElementById('profileAbout').value = '';
+            
+            profileListSection.classList.add('hidden');
+            profileCreationSection.classList.remove('hidden');
+        }
+        
+        // Create a new profile in Firebase
+        function createProfile() {
+            const name = document.getElementById('profileName').value.trim();
+            const gender = document.getElementById('profileGender').value;
+            const image = document.getElementById('profileImage').value.trim();
+            const about = document.getElementById('profileAbout').value.trim();
+            
+            if (!name) {
+                alert('Please enter a name for the profile');
+                return;
+            }
+            
+            showLoading(profileLoading);
+            const newProfile = {
+                name,
+                gender,
+                ...(image && { image }),
+                ...(about && { about })
+            };
+            
+            // Add custom fields
+            const customFieldElements = profileFieldsContainer.querySelectorAll('.custom-field');
+            customFieldElements.forEach(field => {
+                const key = field.querySelector('input[type="text"]').value.trim();
+                const value = field.querySelector('input:not([type="text"])').value.trim();
+                if (key && value) {
+                    newProfile[key] = value;
+                }
+            });
+            
+            const docRef = database.ref(`documents/${currentDocumentId}/profiles`);
+            docRef.push(newProfile)
+                .then(() => {
+                    cancelProfileCreation();
+                    hideLoading(profileLoading);
+                })
+                .catch((error) => {
+                    console.error("Error adding profile: ", error);
+                    hideLoading(profileLoading);
+                    alert('Error creating profile. Please try again.');
+                });
+        }
+        
+        // Cancel profile creation
+        function cancelProfileCreation() {
+            document.getElementById('profileName').value = '';
+            document.getElementById('profileGender').value = 'Male';
+            document.getElementById('profileImage').value = '';
+            document.getElementById('profileAbout').value = '';
+            
+            // Clear custom fields
+            const fields = profileFieldsContainer.querySelectorAll('.custom-field');
+            fields.forEach(field => field.remove());
+            
+            profileCreationSection.classList.add('hidden');
+            profileListSection.classList.remove('hidden');
+        }
+        
+        // Add custom field to profile form
+        function addCustomField() {
+            const fieldId = Date.now().toString();
+            const fieldElement = document.createElement('div');
+            fieldElement.className = 'form-group custom-field';
+            fieldElement.innerHTML = `
+                <label for="fieldKey-${fieldId}">Field Name:</label>
+                <input type="text" id="fieldKey-${fieldId}" placeholder="e.g., Age, Occupation" required>
+                <label for="fieldValue-${fieldId}">Value:</label>
+                <input type="text" id="fieldValue-${fieldId}" placeholder="Value" required>
+                <button class="delete-field-btn" data-id="${fieldId}">Remove Field</button>
+            `;
+            profileFieldsContainer.appendChild(fieldElement);
+            
+            // Add event listener to remove button
+            fieldElement.querySelector('.delete-field-btn').addEventListener('click', (e) => {
+                e.target.parentElement.remove();
+            });
+        }
+        
+        // View a profile
+        function viewProfile(id) {
+            currentProfileId = id;
+            const doc = documents.find(d => d.id === currentDocumentId);
+            if (!doc) {
+                showDocumentList();
+                return;
+            }
+            
+            const profile = doc.profiles ? doc.profiles[id] : null;
+            if (!profile) {
+                showProfileList();
+                return;
+            }
+            
+            // Display profile data
+            let profileHTML = `
+                <div class="profile-data-item">
+                    <h3>${profile.name}</h3>
+                </div>
+                <div class="profile-data-item">
+                    <strong>Gender:</strong> ${profile.gender}
+                </div>
+            `;
+            
+            if (profile.image) {
+                profileHTML += `
+                    <div class="profile-data-item">
+                        <strong>Image:</strong><br>
+                        <img src="${profile.image}" alt="${profile.name}" class="profile-image" onerror="this.style.display='none'">
+                    </div>
+                `;
+            }
+            
+            // Add About section if exists
+            if (profile.about) {
+                profileHTML += `
+                    <div class="profile-data-item">
+                        <strong>About:</strong>
+                        <div class="about-content">${profile.about}</div>
+                    </div>
+                `;
+            }
+            
+            // Add custom fields
+            for (const [key, value] of Object.entries(profile)) {
+                if (key !== 'id' && key !== 'name' && key !== 'gender' && key !== 'image' && key !== 'about') {
+                    profileHTML += `
+                        <div class="profile-data-item">
+                            <strong>${key}:</strong> ${value}
+                        </div>
+                    `;
+                }
+            }
+            
+            profileDataView.innerHTML = profileHTML;
+            profileListSection.classList.add('hidden');
+            profileViewSection.classList.remove('hidden');
+        }
+        
+        // Show profile edit form
+        function showProfileEdit() {
+            const doc = documents.find(d => d.id === currentDocumentId);
+            if (!doc) {
+                showDocumentList();
+                return;
+            }
+            
+            const profile = doc.profiles ? doc.profiles[currentProfileId] : null;
+            if (!profile) {
+                showProfileList();
+                return;
+            }
+            
+            // Clear any existing fields
+            profileEditFields.innerHTML = '';
+            
+            // Add standard fields
+            addEditField('Name', 'name', profile.name || '', true);
+            addEditField('Gender', 'gender', profile.gender || 'Male', false, 'select', [
+                'Male', 'Female', 'Other', 'Prefer not to say'
+            ]);
+            addEditField('Image URL', 'image', profile.image || '', false);
+            addEditField('About', 'about', profile.about || '', false, 'textarea');
+            
+            // Add custom fields
+            for (const [key, value] of Object.entries(profile)) {
+                if (key !== 'id' && key !== 'name' && key !== 'gender' && key !== 'image' && key !== 'about') {
+                    addEditField(key, key, value, false);
+                }
+            }
+            
+            // Add button to add new custom field
+            const addFieldDiv = document.createElement('div');
+            addFieldDiv.className = 'form-group';
+            addFieldDiv.innerHTML = `
+                <button id="addEditFieldBtn">Add New Field</button>
+            `;
+            profileEditFields.appendChild(addFieldDiv);
+            
+            document.getElementById('addEditFieldBtn').addEventListener('click', addEditCustomField);
+            
+            profileViewSection.classList.add('hidden');
+            profileEditSection.classList.remove('hidden');
+        }
+        
+        // Add field to edit form
+        function addEditField(label, name, value, required, type = 'text', options = []) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'form-group';
+            
+            let inputHTML = '';
+            if (type === 'select') {
+                inputHTML = `
+                    <select id="edit-${name}" ${required ? 'required' : ''}>
+                        ${options.map(opt => 
+                            `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
+                        ).join('')}
+                    </select>
+                `;
+            } else if (type === 'textarea') {
+                inputHTML = `
+                    <textarea id="edit-${name}" ${required ? 'required' : ''} rows="4">${value || ''}</textarea>
+                `;
+            } else {
+                inputHTML = `
+                    <input type="${type}" id="edit-${name}" value="${value || ''}" ${required ? 'required' : ''}>
+                `;
+            }
+            
+            fieldDiv.innerHTML = `
+                <label for="edit-${name}">${label}:</label>
+                ${inputHTML}
+                ${!['name', 'gender', 'image', 'about'].includes(name) ? 
+                    `<button class="delete-field-btn" data-field="${name}">Remove</button>` : ''}
+            `;
+            
+            profileEditFields.appendChild(fieldDiv);
+            
+            // Add event listener to remove button if it exists
+            const removeBtn = fieldDiv.querySelector('.delete-field-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.target.parentElement.remove();
+                });
+            }
+        }
+        
+        // Add custom field to edit form
+        function addEditCustomField() {
+            const fieldId = `custom-${Date.now()}`;
+            addEditField('Field Name', fieldId, '', true);
+            addEditField('Field Value', `${fieldId}-value`, '', true);
+        }
+        
+        // Save profile changes to Firebase
+        function saveProfileChanges() {
+            const docRef = database.ref(`documents/${currentDocumentId}/profiles/${currentProfileId}`);
+            
+            // Get all fields from edit form
+            const fields = profileEditFields.querySelectorAll('.form-group');
+            const updatedProfile = {};
+            const customFields = {};
+            
+            fields.forEach(field => {
+                const inputs = field.querySelectorAll('input, select, textarea');
+                if (inputs.length === 2) {
+                    // This is a custom field (name + value)
+                    const keyInput = inputs[0];
+                    const valueInput = inputs[1];
+                    
+                    if (keyInput.value && valueInput.value) {
+                        customFields[keyInput.value] = valueInput.value;
+                    }
+                } else if (inputs.length === 1) {
+                    // This is a standard field
+                    const input = inputs[0];
+                    const fieldName = input.id.replace('edit-', '');
+                    
+                    if (fieldName === 'name' || fieldName === 'gender' || fieldName === 'image' || fieldName === 'about') {
+                        updatedProfile[fieldName] = input.value;
+                    }
+                }
+            });
+            
+            showLoading(saveLoading);
+            docRef.update({
+                ...updatedProfile,
+                ...customFields
+            })
+            .then(() => {
+                cancelProfileEdit();
+                viewProfile(currentProfileId);
+                hideLoading(saveLoading);
+            })
+            .catch((error) => {
+                console.error("Error updating profile: ", error);
+                hideLoading(saveLoading);
+                alert('Error saving profile changes. Please try again.');
+            });
+        }
+        
+        // Cancel profile editing
+        function cancelProfileEdit() {
+            profileEditSection.classList.add('hidden');
+            profileViewSection.classList.remove('hidden');
+        }
+        
+        // Delete a document from Firebase
+        function deleteDocument(id) {
+            if (confirm('Are you sure you want to delete this document and all its profiles?')) {
+                database.ref(`documents/${id}`).remove()
+                    .then(() => {
+                        // If we're viewing the deleted document, go back to document list
+                        if (currentDocumentId === id) {
+                            showDocumentList();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error deleting document: ", error);
+                        alert('Error deleting document. Please try again.');
+                    });
+            }
+        }
+        
+        // Delete a profile from Firebase
+        function deleteProfile(id) {
+            if (confirm('Are you sure you want to delete this profile?')) {
+                database.ref(`documents/${currentDocumentId}/profiles/${id}`).remove()
+                    .then(() => {
+                        if (currentProfileId === id) {
+                            showProfileList();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error deleting profile: ", error);
+                        alert('Error deleting profile. Please try again.');
+                    });
+            }
+        }
+        
+        // Render all data for viewing
+        function renderAllData() {
+            const allDataContainer = document.getElementById('allDataContainer');
+            allDataContainer.innerHTML = '';
+            
+            if (documents.length === 0) {
+                allDataContainer.innerHTML = '<p>No data available. Create your first document!</p>';
+                return;
+            }
+            
+            documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'data-section';
+                docElement.innerHTML = `
+                    <div class="data-document">
+                        <h3>${doc.name}</h3>
+                        <p><strong>Created:</strong> ${new Date(doc.createdAt).toLocaleString()}</p>
+                        <p><strong>Profiles:</strong> ${doc.profiles ? Object.keys(doc.profiles).length : 0}</p>
+                    </div>
+                `;
+                
+                const profilesList = document.createElement('div');
+                profilesList.className = 'data-profiles';
+                
+                if (doc.profiles) {
+                    Object.entries(doc.profiles).forEach(([id, profile]) => {
+                        const profileElement = document.createElement('div');
+                        profileElement.className = 'data-profile';
+                        
+                        let profileHTML = `
+                            <h4>${profile.name}</h4>
+                            <p><strong>Gender:</strong> ${profile.gender || 'Not specified'}</p>
+                        `;
+                        
+                        if (profile.image) {
+                            profileHTML += `
+                                <p><strong>Image:</strong> <a href="${profile.image}" target="_blank">View</a></p>
+                            `;
+                        }
+                        
+                        // Add About section if exists
+                        if (profile.about) {
+                            profileHTML += `
+                                <div class="about-section">
+                                    <h4>About:</h4>
+                                    <div class="about-content">${profile.about}</div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Add custom fields
+                        for (const [key, value] of Object.entries(profile)) {
+                            if (key !== 'id' && key !== 'name' && key !== 'gender' && key !== 'image' && key !== 'about') {
+                                profileHTML += `
+                                    <p><strong>${key}:</strong> ${value}</p>
+                                `;
+                            }
+                        }
+                        
+                        profileElement.innerHTML = profileHTML;
+                        profilesList.appendChild(profileElement);
+                    });
+                }
+                
+                if (profilesList.children.length === 0) {
+                    profilesList.innerHTML = '<p>No profiles in this document.</p>';
+                }
+                
+                docElement.appendChild(profilesList);
+                allDataContainer.appendChild(docElement);
+            });
+        }
+        
+        // Show loading indicator
+        function showLoading(element) {
+            element.classList.remove('hidden');
+        }
+        
+        // Hide loading indicator
+        function hideLoading(element) {
+            element.classList.add('hidden');
+        }
+        
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
